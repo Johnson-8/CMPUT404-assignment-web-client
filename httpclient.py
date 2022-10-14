@@ -77,9 +77,11 @@ class HTTPClient(object):
         return buffer.decode('utf-8')
 
     ''' python docs
-    urlparse("scheme://netloc/path;parameters?query#fragment")
-
-    ParseResult(scheme='scheme', netloc='netloc', path='/path;parameters', params='', query='query', fragment='fragment')
+    o = urlparse("http://docs.python.org:80/3/library/urllib.parse.html?"
+                "highlight=params#url-parsing")
+    ParseResult(scheme='http', netloc='docs.python.org:80',
+            path='/3/library/urllib.parse.html', params='',
+            query='highlight=params', fragment='url-parsing')
     '''
     def GET(self, url, args=None):
         print('HTTP GET')
@@ -123,6 +125,10 @@ class HTTPClient(object):
 
     # POST 
     # header formatting reference: https://www.tutorialspoint.com/http/http_requests.htm
+    '''
+    Content-Type: application/x-www-form-urlencoded
+    args = urllib.parse.urlencode(args)
+    '''
     def POST(self, url, args=None):
         print('HTTP POST')
         # connection variables
@@ -134,8 +140,10 @@ class HTTPClient(object):
         url_parsed = urllib.parse.urlparse(url)
 
         # content variables
+        if args != None:  # only encode if there is content
+            args = urllib.parse.urlencode(args)
         content = args
-        content_type = 'text/html; charset=UTF-8'
+        content_type = 'application/x-www-form-urlencoded' #'text/plain' #'text/html; charset=UTF-8'
         content_length = 0
         
         # move to function later
@@ -150,11 +158,21 @@ class HTTPClient(object):
             h_port = int(split[1])
             print(f'Port changed to {h_port} from 80')
 
-        if not content == None:  # if there is content recalc length and send
+        # if there is content recalc length and send
+        if content != None:  
             content_length = len(content)
-            payload = f'GET {h_path} HTTP/1.1\r\nHost: {h_host}\r\nContent-Type: {content_type}\r\nContent-Length: {content_length}\r\nConnection: Close\r\n\r\n{content}\r\n\r\n'
-        else:  # no content dont include
-            payload = f'GET {h_path} HTTP/1.1\r\nHost: {h_host}\r\nContent-Type: {content_type}\r\nContent-Length: {content_length}\r\nConnection: Close\r\n\r\n'
+            payload =   f'POST {h_path} HTTP/1.1'
+            payload +=  f'\r\nHost: {h_host}'
+            payload +=  f'\r\nContent-Type: {content_type}'
+            payload +=  f'\r\nContent-Length: {content_length}'
+            payload +=  f'\r\nConnection: Close\r\n\r\n{content}\r\n\r\n'
+        # no content
+        else:  
+            payload =   f'POST {h_path} HTTP/1.1'
+            payload +=  f'\r\nHost: {h_host}'
+            payload +=  f'\r\nContent-Type: {content_type}'
+            payload +=  f'\r\nContent-Length: {content_length}'
+            payload +=  f'\r\nConnection: Close\r\n\r\n''\r\n\r\n'
 
         self.connect(h_host, h_port)
         self.sendall(payload)
