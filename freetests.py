@@ -13,8 +13,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
-# run python freetests.py
 
 import unittest
 import httpclient
@@ -251,6 +249,8 @@ class TestHTTPClient(unittest.TestCase):
         print("Test Post Body: [%s]" % req.body)
         outargs = json.loads(req.body)
         print(outargs.__class__)
+        print('\ntesting:\n' + str(args))
+        print('out args:\n' + str(outargs))
         for key in args:
             self.assertTrue(args[key] == outargs[key][0], "Key [%s] not found" % key)
         for key in outargs:

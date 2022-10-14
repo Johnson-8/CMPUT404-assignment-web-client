@@ -33,10 +33,8 @@ class HTTPResponse(object):
         self.body = str(body)
 
 class HTTPClient(object):
-    #def get_host_port(self,url):
-
     def connect(self, host, port):
-        print(f'Host: {host} Port: {port}')
+        print(f'Connecting to host: {host} on port: {port}')
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.connect((host, port))
         return None
@@ -76,9 +74,10 @@ class HTTPClient(object):
                 done = not part
         return buffer.decode('utf-8')
 
-    ''' python docs
-    o = urlparse("http://docs.python.org:80/3/library/urllib.parse.html?"
-                "highlight=params#url-parsing")
+    ''' 
+    from python docs
+    o = urlparse("http://docs.python.org:80/3/library/urllib.parse.html?highlight=params#url-parsing")
+    o
     ParseResult(scheme='http', netloc='docs.python.org:80',
             path='/3/library/urllib.parse.html', params='',
             query='highlight=params', fragment='url-parsing')
@@ -93,15 +92,11 @@ class HTTPClient(object):
         url_parsed = urllib.parse.urlparse(url)
         print("Parsed URL:\n" + str(url_parsed))
 
-        if url_parsed.netloc:  # make sure URL is valid
+        if url_parsed.netloc:
             h_host = url_parsed.netloc
-            # print('Invalid URL')
-            # exit()            
-        
         if url_parsed.path:
             h_path = url_parsed.path
-
-        if ':' in h_host:  # if there is a port splice it
+        if ':' in h_host:  # if there is a port split it
             split = h_host.split(':')
             h_host = str(split[0])
             h_port = int(split[1])
@@ -111,15 +106,17 @@ class HTTPClient(object):
 
         payload = f'GET {h_path} HTTP/1.1\r\nHost: {h_host}\r\nConnection: Close\r\n\r\n'
 
+        # connect, send data, get data, and close socket
         self.connect(h_host, h_port)
         self.sendall(payload)
         h_data = self.recvall(self.socket)
+        self.close()
 
+        # parse data
         h_data = h_data.split('\r\n\r\n')
         code = self.get_code(h_data)
         headers = self.get_headers(h_data)
-        body = self.get_body(h_data)
-        self.close()
+        body = self.get_body(h_data)        
 
         return HTTPResponse(code, body)
 
@@ -131,6 +128,7 @@ class HTTPClient(object):
     '''
     def POST(self, url, args=None):
         print('HTTP POST')
+
         # connection variables
         code = 500
         body = ''      
@@ -143,7 +141,7 @@ class HTTPClient(object):
         if args != None:  # only encode if there is content
             args = urllib.parse.urlencode(args)
         content = args
-        content_type = 'application/x-www-form-urlencoded' #'text/plain' #'text/html; charset=UTF-8'
+        content_type = 'application/x-www-form-urlencoded'  #'text/plain' #'text/html; charset=UTF-8'
         content_length = 0
         
         # move to function later
@@ -158,31 +156,28 @@ class HTTPClient(object):
             h_port = int(split[1])
             print(f'Port changed to {h_port} from 80')
 
-        # if there is content recalc length and send
+        # if there is content recalc length
         if content != None:  
             content_length = len(content)
-            payload =   f'POST {h_path} HTTP/1.1'
-            payload +=  f'\r\nHost: {h_host}'
-            payload +=  f'\r\nContent-Type: {content_type}'
-            payload +=  f'\r\nContent-Length: {content_length}'
-            payload +=  f'\r\nConnection: Close\r\n\r\n{content}\r\n\r\n'
-        # no content
-        else:  
-            payload =   f'POST {h_path} HTTP/1.1'
-            payload +=  f'\r\nHost: {h_host}'
-            payload +=  f'\r\nContent-Type: {content_type}'
-            payload +=  f'\r\nContent-Length: {content_length}'
-            payload +=  f'\r\nConnection: Close\r\n\r\n''\r\n\r\n'
+        # no content send empty str
+        else:
+            content = ''
+
+        payload =   f'POST {h_path} HTTP/1.1'
+        payload +=  f'\r\nHost: {h_host}'
+        payload +=  f'\r\nContent-Type: {content_type}'
+        payload +=  f'\r\nContent-Length: {content_length}'
+        payload +=  f'\r\nConnection: Close\r\n\r\n{content}\r\n\r\n'
 
         self.connect(h_host, h_port)
         self.sendall(payload)
         h_data = self.recvall(self.socket)
+        self.close()
 
         h_data = h_data.split('\r\n\r\n')
         code = self.get_code(h_data)
         headers = self.get_headers(h_data)
-        body = self.get_body(h_data)
-        self.close()
+        body = self.get_body(h_data)        
 
         return HTTPResponse(code, body)
 
