@@ -28,14 +28,15 @@ def help():
     print("httpclient.py [GET/POST] [URL]\n")
 
 class HTTPResponse(object):
-    def __init__(self, code=200, body=""):
-        self.code = code
-        self.body = body
+    def __init__(self, code=200, body=''):
+        self.code = int(code)
+        self.body = str(body)
 
 class HTTPClient(object):
     #def get_host_port(self,url):
 
     def connect(self, host, port):
+        print(f'Host: {host} Port: {port}')
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.connect((host, port))
         return None
@@ -65,17 +66,15 @@ class HTTPClient(object):
 
     # read everything from the socket
     def recvall(self, sock):
-        buffer = b''
+        buffer = bytearray()
         done = False
-
         while not done:
             part = sock.recv(1024)
             if (part):
-                buffer += part
+                buffer.extend(part)
             else:
                 done = not part
-
-        return buffer.decode('latin-1')
+        return buffer.decode('utf-8')
 
     ''' python docs
     urlparse("scheme://netloc/path;parameters?query#fragment")
@@ -87,23 +86,28 @@ class HTTPClient(object):
         code = 500
         body = ''
         h_port = 80
-        h_host = ''
+        h_host = url
+        h_path = '/'
         url_parsed = urllib.parse.urlparse(url)
         print("Parsed URL:\n" + str(url_parsed))
 
-        if not url_parsed.netloc:  # make sure URL is valid
-            print('Invalid URL')
-            exit()            
-
-        h_host = url_parsed.netloc
+        if url_parsed.netloc:  # make sure URL is valid
+            h_host = url_parsed.netloc
+            # print('Invalid URL')
+            # exit()            
+        
+        if url_parsed.path:
+            h_path = url_parsed.path
 
         if ':' in h_host:  # if there is a port splice it
             split = h_host.split(':')
-            h_host = split[0]
-            h_port = split[1]
+            h_host = str(split[0])
+            h_port = int(split[1])
             print(f'Port changed to {h_port} from 80')
 
-        payload = f'GET {url_parsed.path} HTTP/1.1\r\nHost: {h_host}\r\nConnection: Close\r\n\r\n'
+        #h_host = socket.gethostbyname(h_host)
+
+        payload = f'GET {h_path} HTTP/1.1\r\nHost: {h_host}\r\nConnection: Close\r\n\r\n'
 
         self.connect(h_host, h_port)
         self.sendall(payload)
@@ -117,10 +121,51 @@ class HTTPClient(object):
 
         return HTTPResponse(code, body)
 
+    # POST 
+    # header formatting reference: https://www.tutorialspoint.com/http/http_requests.htm
     def POST(self, url, args=None):
-        code = 500
-        body = ""
         print('HTTP POST')
+        # connection variables
+        code = 500
+        body = ''      
+        h_port = 80
+        h_host = url
+        h_path = '/'
+        url_parsed = urllib.parse.urlparse(url)
+
+        # content variables
+        content = args
+        content_type = 'text/html; charset=UTF-8'
+        content_length = 0
+        
+        # move to function later
+        print("Parsed URL:\n" + str(url_parsed))
+        if url_parsed.netloc:
+            h_host = url_parsed.netloc  
+        if url_parsed.path:
+            h_path = url_parsed.path
+        if ':' in h_host:
+            split = h_host.split(':')
+            h_host = str(split[0])
+            h_port = int(split[1])
+            print(f'Port changed to {h_port} from 80')
+
+        if not content == None:  # if there is content recalc length and send
+            content_length = len(content)
+            payload = f'GET {h_path} HTTP/1.1\r\nHost: {h_host}\r\nContent-Type: {content_type}\r\nContent-Length: {content_length}\r\nConnection: Close\r\n\r\n{content}\r\n\r\n'
+        else:  # no content dont include
+            payload = f'GET {h_path} HTTP/1.1\r\nHost: {h_host}\r\nContent-Type: {content_type}\r\nContent-Length: {content_length}\r\nConnection: Close\r\n\r\n'
+
+        self.connect(h_host, h_port)
+        self.sendall(payload)
+        h_data = self.recvall(self.socket)
+
+        h_data = h_data.split('\r\n\r\n')
+        code = self.get_code(h_data)
+        headers = self.get_headers(h_data)
+        body = self.get_body(h_data)
+        self.close()
+
         return HTTPResponse(code, body)
 
     def command(self, url, command="GET", args=None):
