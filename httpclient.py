@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # coding: utf-8
-# Copyright 2016 Abram Hindle, https://github.com/tywtyw2002, and https://github.com/treedust
+# Copyright 2022 Johnson Zhao
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -41,13 +41,21 @@ class HTTPClient(object):
         return None
 
     def get_code(self, data):
-        return None
+        resp = data[0].split(' ')
+        resp_code = resp[1]
+        print('\nResponse Code: ' + resp_code)
+        return resp_code
 
-    def get_headers(self,data):
-        return None
+    def get_headers(self, data):
+        headers = data[0]
+        headers_list = headers.split('\r\n')
+        print('Headers:\n' + headers)
+        return headers
 
     def get_body(self, data):
-        return None
+        body = data[1]
+        #print("\n\n\nData:" + body)
+        return body
     
     def sendall(self, data):
         self.socket.sendall(data.encode('utf-8'))
@@ -57,31 +65,69 @@ class HTTPClient(object):
 
     # read everything from the socket
     def recvall(self, sock):
-        buffer = bytearray()
+        buffer = b''
         done = False
+
         while not done:
             part = sock.recv(1024)
             if (part):
-                buffer.extend(part)
+                buffer += part
             else:
                 done = not part
-        return buffer.decode('utf-8')
 
+        return buffer.decode('latin-1')
+
+    ''' python docs
+    urlparse("scheme://netloc/path;parameters?query#fragment")
+
+    ParseResult(scheme='scheme', netloc='netloc', path='/path;parameters', params='', query='query', fragment='fragment')
+    '''
     def GET(self, url, args=None):
+        print('HTTP GET')
         code = 500
-        body = ""
+        body = ''
+        h_port = 80
+        h_host = ''
+        url_parsed = urllib.parse.urlparse(url)
+        print("Parsed URL:\n" + str(url_parsed))
+
+        if not url_parsed.netloc:  # make sure URL is valid
+            print('Invalid URL')
+            exit()            
+
+        h_host = url_parsed.netloc
+
+        if ':' in h_host:  # if there is a port splice it
+            split = h_host.split(':')
+            h_host = split[0]
+            h_port = split[1]
+            print(f'Port changed to {h_port} from 80')
+
+        payload = f'GET {url_parsed.path} HTTP/1.1\r\nHost: {h_host}\r\nConnection: Close\r\n\r\n'
+
+        self.connect(h_host, h_port)
+        self.sendall(payload)
+        h_data = self.recvall(self.socket)
+
+        h_data = h_data.split('\r\n\r\n')
+        code = self.get_code(h_data)
+        headers = self.get_headers(h_data)
+        body = self.get_body(h_data)
+        self.close()
+
         return HTTPResponse(code, body)
 
     def POST(self, url, args=None):
         code = 500
         body = ""
+        print('HTTP POST')
         return HTTPResponse(code, body)
 
     def command(self, url, command="GET", args=None):
         if (command == "POST"):
-            return self.POST( url, args )
+            return self.POST(url, args)
         else:
-            return self.GET( url, args )
+            return self.GET(url, args)
     
 if __name__ == "__main__":
     client = HTTPClient()
@@ -90,6 +136,6 @@ if __name__ == "__main__":
         help()
         sys.exit(1)
     elif (len(sys.argv) == 3):
-        print(client.command( sys.argv[2], sys.argv[1] ))
+        print(client.command(sys.argv[2], sys.argv[1].upper()))
     else:
-        print(client.command( sys.argv[1] ))
+        print(client.command(sys.argv[1]))
